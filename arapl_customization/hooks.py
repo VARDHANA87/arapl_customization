@@ -26,7 +26,7 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/arapl_customization/css/arapl_customization.css"
-# app_include_js = "/assets/arapl_customization/js/arapl_customization.js"
+app_include_js = "/assets/arapl_customization/js/get_expense_account.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/arapl_customization/css/arapl_customization.css"
@@ -43,7 +43,10 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+	"Material Request": "custom_stock/customization/material_request/material_request.js",
+	"Purchase Order": "custom_buying/customization/purchase_order/purchase_order.js",
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
