@@ -1,7 +1,7 @@
 window.get_expense_account = function (frm, cdt, cdn) {
 	let row = locals[cdt][cdn];
 
-	if (!row.cost_center) {
+	if (!row.budget_allocation) {
 		frappe.model.set_value(cdt, cdn, "expense_account", "");
 		return;
 	}
@@ -11,7 +11,7 @@ window.get_expense_account = function (frm, cdt, cdn) {
 		args: {
 			doctype: "Budget",
 			filters: {
-				cost_center: row.cost_center,
+				budget_allocation: row.budget_allocation,
 			},
 			fields: ["name"],
 			limit_page_length: 1,
