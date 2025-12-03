@@ -67,6 +67,3 @@ quote-style = "double"
 indent-style = "tab"
 docstring-code-format = true
 
-# These dependencies are only installed when developer mode is enabled
-[tool.bench.dev-dependencies]
-# package_name = "~=1.1.0"
