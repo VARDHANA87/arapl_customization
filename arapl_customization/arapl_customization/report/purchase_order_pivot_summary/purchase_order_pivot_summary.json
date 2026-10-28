@@ -1,0 +1,134 @@
+{
+ "add_total_row": 1,
+ "add_translate_data": 0,
+ "columns": [
+  {
+   "fieldname": "Purchase Orders",
+   "fieldtype": "Data",
+   "label": "Purchase Orders",
+   "width": 200
+  },
+  {
+   "fieldname": "Transaction Dates",
+   "fieldtype": "Data",
+   "label": "Transaction Dates",
+   "width": 150
+  },
+  {
+   "fieldname": "Budget Allocation",
+   "fieldtype": "Data",
+   "label": "Budget Allocation",
+   "width": 150
+  },
+  {
+   "fieldname": "Department",
+   "fieldtype": "Data",
+   "label": "Department",
+   "width": 120
+  },
+  {
+   "fieldname": "Expense Account",
+   "fieldtype": "Link",
+   "label": "Expense Account",
+   "options": "Account",
+   "width": 200
+  },
+  {
+   "fieldname": "Project Code",
+   "fieldtype": "Link",
+   "label": "Project Code",
+   "options": "Project",
+   "width": 120
+  },
+  {
+   "fieldname": "Amount of Allocation",
+   "fieldtype": "Currency",
+   "label": "Amount of Allocation",
+   "width": 150
+  },
+  {
+   "fieldname": "Expense Amount",
+   "fieldtype": "Currency",
+   "label": "Expense Amount",
+   "width": 150
+  }
+ ],
+ "creation": "2026-10-09 17:41:34.979251",
+ "disable_prepared_report_automation": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "doctype_to_sync": [],
+ "filters": [
+  {
+   "default": "2020-01-01",
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "default": "2026-12-31",
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "default": "",
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "mandatory": 1,
+   "options": "Project",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "",
+   "fieldname": "budget_allocation",
+   "fieldtype": "Link",
+   "label": "Budget Allocation",
+   "mandatory": 1,
+   "options": "Budget",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "",
+   "fieldname": "purchase_order",
+   "fieldtype": "Link",
+   "label": "Purchase Order",
+   "mandatory": 1,
+   "options": "Purchase Order",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "No",
+ "letter_head": null,
+ "modified": "2026-10-28 17:37:06.411440",
+ "modified_by": "Administrator",
+ "module": "Buying",
+ "name": "Purchase Order Pivot Summary",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT\n    GROUP_CONCAT(DISTINCT po.name ORDER BY po.name ASC SEPARATOR ', ') AS `Purchase Orders`,\n    GROUP_CONCAT(DISTINCT po.transaction_date ORDER BY po.transaction_date ASC SEPARATOR ', ') AS `Transaction Dates`,\n    poi.budget_allocation AS `Budget Allocation`,\n    poi.department AS `Department`,\n    poi.expense_account AS `Expense Account`,\n    po.project AS `Project Code`,\n    SUM(ba.budget_amount) AS `Amount of Allocation`,\n    SUM(poi.amount) AS `Expense Amount`\nFROM\n    `tabPurchase Order Item` poi\nJOIN\n    `tabPurchase Order` po ON poi.parent = po.name\nLEFT JOIN\n    `tabBudget` b ON poi.budget_allocation = b.budget_allocation\nLEFT JOIN\n    `tabBudget Account` ba ON ba.parent = b.name\nWHERE\n    po.docstatus = 1\n    AND (po.transaction_date >= %(from_date)s OR %(from_date)s IS NULL)\n    AND (po.transaction_date <= %(to_date)s OR %(to_date)s IS NULL)\n    AND (po.project = %(project)s OR %(project)s IS NULL OR %(project)s = '')\n    AND (poi.budget_allocation = %(budget_allocation)s OR %(budget_allocation)s IS NULL OR %(budget_allocation)s = '')\n    AND (po.name = %(purchase_order)s OR %(purchase_order)s IS NULL OR %(purchase_order)s = '')\nGROUP BY\n    poi.department,\n    poi.expense_account,\n    poi.budget_allocation,\n    po.project\nORDER BY\n    poi.department,\n    poi.expense_account;",
+ "ref_doctype": "Purchase Order",
+ "report_name": "Purchase Order Pivot Summary",
+ "report_script": "def get_data(filters):\n    from_date = filters.get(\"from_date\")\n    to_date = filters.get(\"to_date\")\n    project = filters.get(\"project\")\n    budget_allocation = filters.get(\"budget_allocation\")\n    purchase_order = filters.get(\"purchase_order\")\n\n    conditions = [\"po.docstatus = 1\"]\n\n    if from_date:\n        conditions.append(\"po.transaction_date >= %(from_date)s\")\n    if to_date:\n        conditions.append(\"po.transaction_date <= %(to_date)s\")\n    if project:\n        conditions.append(\"po.project = %(project)s\")\n    if budget_allocation:\n        conditions.append(\"poi.budget_allocation = %(budget_allocation)s\")\n    if purchase_order:\n        conditions.append(\"po.name = %(purchase_order)s\")\n\n    where_clause = \" AND \".join(conditions)\n\n    query = \"\"\"\n        SELECT\n            GROUP_CONCAT(DISTINCT po.name ORDER BY po.name ASC SEPARATOR ', ') AS `Purchase Orders`,\n            GROUP_CONCAT(DISTINCT po.transaction_date ORDER BY po.transaction_date ASC SEPARATOR ', ') AS `Transaction Dates`,\n            poi.budget_allocation AS `Budget Allocation`,\n            poi.department AS `Department`,\n            poi.expense_account AS `Expense Account`,\n            po.project AS `Project Code`,\n            SUM(ba.budget_amount) AS `Amount of Allocation`,\n            SUM(poi.amount) AS `Expense Amount`\n        FROM\n            `tabPurchase Order Item` poi\n        JOIN\n            `tabPurchase Order` po ON poi.parent = po.name\n        LEFT JOIN\n            `tabBudget` b ON poi.budget_allocation = b.budget_allocation\n        LEFT JOIN\n            `tabBudget Account` ba ON ba.parent = b.name\n        WHERE\n            {where_clause}\n        GROUP BY\n            poi.department,\n            poi.expense_account,\n            poi.budget_allocation,\n            po.project\n        ORDER BY\n            poi.department,\n            poi.expense_account\n    \"\"\".replace(\"{where_clause}\", where_clause)\n\n    sql_filters = {}\n    if from_date:\n        sql_filters[\"from_date\"] = from_date\n    if to_date:\n        sql_filters[\"to_date\"] = to_date\n    if project:\n        sql_filters[\"project\"] = project\n    if budget_allocation:\n        sql_filters[\"budget_allocation\"] = budget_allocation\n    if purchase_order:\n        sql_filters[\"purchase_order\"] = purchase_order\n\n    data = frappe.db.sql(query, sql_filters, as_dict=True)\n    return data\n\n\ndef get_columns():\n    return [\n        {\"label\": _(\"Purchase Orders\"), \"fieldname\": \"Purchase Orders\", \"fieldtype\": \"Data\", \"width\": 200},\n        {\"label\": _(\"Transaction Dates\"), \"fieldname\": \"Transaction Dates\", \"fieldtype\": \"Data\", \"width\": 150},\n        {\"label\": _(\"Budget Allocation\"), \"fieldname\": \"Budget Allocation\", \"fieldtype\": \"Data\", \"width\": 150},\n        {\"label\": _(\"Department\"), \"fieldname\": \"Department\", \"fieldtype\": \"Data\", \"width\": 120},\n        {\"label\": _(\"Expense Account\"), \"fieldname\": \"Expense Account\", \"fieldtype\": \"Link\", \"options\": \"Account\", \"width\": 200},\n        {\"label\": _(\"Project Code\"), \"fieldname\": \"Project Code\", \"fieldtype\": \"Link\", \"options\": \"Project\", \"width\": 120},\n        {\"label\": _(\"Amount of Allocation\"), \"fieldname\": \"Amount of Allocation\", \"fieldtype\": \"Currency\", \"width\": 150},\n        {\"label\": _(\"Expense Amount\"), \"fieldname\": \"Expense Amount\", \"fieldtype\": \"Currency\", \"width\": 150},\n    ]\n\n\n# Copyright (c) 2024, and contributors\n# For license information, please see license.txt\n\n\n\nresult = get_data(filters)",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "Stock User"
+  },
+  {
+   "role": "Purchase Manager"
+  },
+  {
+   "role": "Purchase User"
+  }
+ ],
+ "snapshot_report": 0,
+ "timeout": 0
+}
