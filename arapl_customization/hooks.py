@@ -244,3 +244,15 @@ doctype_js = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
+<<<<<<< HEAD
+=======
+
+# Fixtures
+# ------------------
+fixtures = [
+    {
+        "dt": "Report",
+        "filters": [["name", "=", "Purchase Order Pivot Summary"]]
+    }
+]
+>>>>>>> upstream/feat/purchase-order-pivot-summary-enhancements
