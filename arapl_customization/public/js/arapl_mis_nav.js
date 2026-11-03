@@ -42,20 +42,17 @@ frappe.provide("arapl.mis.nav");
 	}
 
 	function has_button(page) {
-		return page.inner_toolbar.find(
-			'button[data-label="' + encodeURIComponent(LABEL) + '"]'
-		).length > 0;
+		return (
+			page.inner_toolbar.find('button[data-label="' + encodeURIComponent(LABEL) + '"]')
+				.length > 0
+		);
 	}
 
 	function drop_menu_items(page) {
 		// dropdown items store the raw label, toolbar buttons the encoded one
 		page.menu
 			.find(
-				'a[data-label="' +
-					LABEL +
-					'"], a[data-label="' +
-					encodeURIComponent(LABEL) +
-					'"]'
+				'a[data-label="' + LABEL + '"], a[data-label="' + encodeURIComponent(LABEL) + '"]'
 			)
 			.remove();
 	}
