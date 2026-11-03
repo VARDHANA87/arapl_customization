@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arapl MIS - Purchase Order Pivot</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; padding:0; background:#f6f8fa; color:#1f2328;
+         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1260px; margin:0 auto; padding:20px 16px 40px; }
+  .card { background:#fff; border:1px solid #d0d7de; border-radius:8px; overflow:hidden;
+          box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .hdr { background:#0d2350; color:#fff; padding:22px 26px; display:flex;
+         justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; }
+  .hdr .eyebrow { font-size:12px; letter-spacing:1.5px; color:#9ab3e0;
+                  text-transform:uppercase; }
+  .hdr h1 { font-size:22px; margin:4px 0 6px; font-weight:700; }
+  .hdr .sub { font-size:13px; color:#9ab3e0; }
+  .hdr .meta { text-align:right; font-size:12px; color:#9ab3e0; line-height:1.6; }
+  .hdr .meta strong { color:#fff; font-size:14px; }
+  .hdr .meta a.back { color:#cfe0ff; text-decoration:none; border:1px solid rgba(255,255,255,.35);
+                      border-radius:12px; padding:2px 10px; font-size:11px; display:inline-block; }
+  .hdr .meta a.back:hover { background:rgba(255,255,255,.12); color:#fff; }
+
+  form.filters { padding:12px 16px; background:#f6f8fa; border-bottom:1px solid #d0d7de; }
+  form.filters table { width:100%; border-collapse:separate; border-spacing:0; }
+  form.filters td { padding:4px 6px; vertical-align:bottom; }
+  form.filters label { display:block; font-size:10px; color:#656d76; letter-spacing:.5px;
+                       text-transform:uppercase; font-weight:600; margin-bottom:3px; }
+  form.filters input, form.filters select { width:100%; padding:6px 8px; font-size:12px;
+      border:1px solid #d0d7de; border-radius:4px; background:#fff; color:#1f2328; }
+  form.filters button { padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer;
+      border:1px solid #1f6feb; background:#1f6feb; color:#fff; border-radius:4px; }
+  .filter-note { font-size:11px; color:#656d76; margin-top:8px; padding-left:6px; }
+  .filter-note a { color:#0969da; text-decoration:none; }
+  .filter-note a:hover { text-decoration:underline; }
+  .range-toggle a { border:1px solid #d0d7de; border-radius:10px; padding:1px 8px; background:#fff; }
+  .range-toggle a:hover { background:#f6f8fa; text-decoration:none; }
+
+  .kpis { display:flex; flex-wrap:wrap; gap:8px; padding:18px 18px 6px; }
+  .kpi { flex:1 1 150px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:6px;
+         padding:12px 14px; }
+  .kpi .lbl { font-size:10px; color:#656d76; letter-spacing:.5px; text-transform:uppercase;
+              font-weight:600; }
+  .kpi .val { font-size:20px; font-weight:700; margin-top:6px; line-height:1.15; }
+  .kpi .hint { font-size:11px; color:#656d76; margin-top:4px; }
+  .kpi.good { background:#dafbe1; border-color:#1a7f37; }
+  .kpi.good .lbl { color:#0a4d1e; }
+  .kpi.warn { background:#fff8e6; border-color:#d4a72c; }
+  .kpi.warn .lbl { color:#7d4e00; }
+  .kpi.bad  { background:#ffebe9; border-color:#cf222e; }
+  .kpi.bad  .lbl { color:#a40e26; }
+
+  .section { padding:16px 22px 4px; }
+  .section h2 { font-size:11px; letter-spacing:1px; text-transform:uppercase;
+                color:#656d76; font-weight:600; margin:0 0 2px; }
+  .section .desc { font-size:11px; color:#8b949e; margin-bottom:8px; }
+  .grid2 { display:flex; flex-wrap:wrap; gap:20px; padding:8px 22px 4px; }
+  .grid2 > .col { flex:1 1 480px; min-width:320px; }
+
+  .barlist { width:100%; border-collapse:collapse; }
+  .barlist td { padding:4px 0; font-size:12px; vertical-align:middle; }
+  .barlist td.lbl { width:34%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .barlist td.bar { padding:4px 8px; }
+  .barlist .track { background:#eaeef2; height:18px; border-radius:3px; overflow:hidden; }
+  .barlist .fill { background:#1f6feb; height:18px; border-radius:3px; }
+  .barlist .fill.alt { background:#1a7f37; }
+  .barlist .fill.warn { background:#bf8700; }
+  .barlist td.num { width:130px; text-align:right; font-weight:600; white-space:nowrap; }
+  .barlist td.pct { width:52px; text-align:right; color:#656d76; font-size:11px; }
+
+  .tblwrap { padding:8px 22px 22px; overflow-x:auto; }
+  table.data { width:100%; border-collapse:separate; border-spacing:0;
+                border:1px solid #d0d7de; border-radius:6px; overflow:hidden; }
+  table.data th { background:#f6f8fa; text-align:left; font-size:10px; letter-spacing:.5px;
+                  text-transform:uppercase; color:#656d76; padding:8px 9px;
+                  border-bottom:1px solid #d0d7de; white-space:nowrap; }
+  table.data td { padding:7px 9px; font-size:12px; border-bottom:1px solid #eaeef2;
+                  vertical-align:top; }
+  table.data tr:last-child td { border-bottom:none; }
+  table.data tr:hover td { background:#f6faff; }
+  table.data td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  table.data td:first-child { max-width:240px; word-break:break-word; }
+  table.data tfoot td { background:#f6f8fa; font-weight:700; border-top:1px solid #d0d7de; }
+  .badge { display:inline-block; padding:1px 6px; font-size:10px; border-radius:10px; font-weight:600; }
+  .badge-inr { background:#e1f5fe; color:#0277bd; }
+  .badge-usd { background:#e8f5e9; color:#2e7d32; }
+  .muted { color:#8b949e; }
+  .empty { padding:28px; text-align:center; color:#656d76; font-size:13px; }
+  .ftr { padding:14px 22px; background:#f6f8fa; border-top:1px solid #d0d7de;
+         font-size:11px; color:#656d76; display:flex; justify-content:space-between;
+         flex-wrap:wrap; gap:8px; }
+  .ftr a { color:#0969da; text-decoration:none; }
+  a { color:#0969da; text-decoration:none; }
+  @media (max-width:720px) {
+    .hdr .meta { text-align:left; }
+    .kpi .val { font-size:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div>
+      <div class="eyebrow">Arapl · MIS · Purchase</div>
+      <h1>Purchase Order Pivot Summary</h1>
+      <div class="sub">Project-wise allocation vs expense · {{ range_label }}</div>
+    </div>
+    <div class="meta">
+      <div>Generated</div>
+      <div><strong>{{ generated_at }}</strong></div>
+      <div style="margin-top:6px;">{{ row_count }} rows · {{ po_count }} POs</div>
+      <div style="margin-top:8px;"><a class="back" href="{{ report_url }}" target="_top">← Standard report</a></div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <form class="filters" method="GET" action="{{ base_url }}">
+    {% if all_dates_flag %}<input type="hidden" name="all_dates" value="1">{% endif %}
+    <table>
+      <tr>
+        <td style="width:12%;">
+          <label>From Date</label>
+          <input type="date" name="from_date" value="{{ filter_from_date }}">
+        </td>
+        <td style="width:12%;">
+          <label>To Date</label>
+          <input type="date" name="to_date" value="{{ filter_to_date }}">
+        </td>
+        <td style="width:18%;">
+          <label>Project</label>
+          <input type="text" name="project" list="project-list" value="{{ filter_project }}" placeholder="Search project...">
+          <datalist id="project-list">
+            {% for p in projects %}
+            <option value="{{ p }}">
+            {% endfor %}
+          </datalist>
+        </td>
+        <td style="width:12%;">
+          <label>Currency</label>
+          <select name="currency">
+            <option value="">All Currencies</option>
+            <option value="INR"{% if filter_currency == "INR" %} selected{% endif %}>INR (₹)</option>
+            <option value="USD"{% if filter_currency == "USD" %} selected{% endif %}>USD ($)</option>
+          </select>
+        </td>
+        <td style="width:16%;">
+          <label>Purchase Order</label>
+          <input type="text" name="purchase_order" value="{{ filter_purchase_order }}"
+                 placeholder="e.g. PO-26-27-00316">
+        </td>
+        <td style="width:16%;">
+          <label>Budget Allocation</label>
+          <input type="text" name="budget_allocation" value="{{ filter_budget_allocation }}"
+                 placeholder="e.g. BD-2026-00107">
+        </td>
+        <td style="width:10%;">
+          <button type="submit">Apply</button>
+        </td>
+      </tr>
+    </table>
+    <div class="filter-note">
+      Showing <strong>{{ range_label }}</strong>
+      {% if filter_project %} · project <strong>{{ filter_project }}</strong>{% endif %}
+      {% if filter_currency %} · currency <strong>{{ filter_currency }}</strong>{% endif %}
+      {% if filter_purchase_order %} · PO <strong>{{ filter_purchase_order }}</strong>{% endif %}
+      {% if filter_budget_allocation %} · budget <strong>{{ filter_budget_allocation }}</strong>{% endif %}
+      &nbsp;·&nbsp;
+      <span class="range-toggle">
+        {% if filter_from_date or filter_to_date %}
+        <a href="{{ all_dates_url }}">All dates</a>
+        {% else %}
+        <a href="{{ last_month_url }}">Last 1 month</a>
+        {% endif %}
+      </span>
+      &nbsp;·&nbsp; <a href="{{ base_url }}">Reset</a>
+      &nbsp;·&nbsp; <a href="{{ report_url }}" target="_top">Open standard report ↗</a>
+    </div>
+  </form>
+
+  <!-- KPI TILES -->
+  <div class="kpis">
+    <div class="kpi">
+      <div class="lbl">Purchase Orders</div>
+      <div class="val">{{ po_count }}</div>
+      <div class="hint">{{ row_count }} rows</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Allocation ({% if selected_currency %}{{ selected_currency }}{% else %}INR{% endif %})</div>
+      <div class="val">{{ total_alloc_fmt }}</div>
+      <div class="hint">matched budget lines</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Expense ({% if selected_currency %}{{ selected_currency }}{% else %}INR{% endif %})</div>
+      <div class="val">{{ total_expense_fmt }}</div>
+      <div class="hint">submitted PO value</div>
+    </div>
+    <div class="kpi {% if total_balance < 0 %}bad{% else %}good{% endif %}">
+      <div class="lbl">Balance Amount</div>
+      <div class="val">{{ total_balance_fmt }}</div>
+      <div class="hint">
+        {% if not selected_currency and (inr_count and usd_count) %}
+          INR: {{ inr_balance_fmt }} &nbsp;|&nbsp; USD: {{ usd_balance_fmt }}
+        {% else %}
+          allocation - expense
+        {% endif %}
+      </div>
+    </div>
+    <div class="kpi {% if utilisation is none %}warn{% elif utilisation > 100 %}bad{% else %}good{% endif %}">
+      <div class="lbl">Utilisation</div>
+      <div class="val">{{ utilisation_fmt }}</div>
+      <div class="hint">expense / allocation</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Projects / Departments</div>
+      <div class="val">{{ project_count }} <span class="muted" style="font-size:14px;">/ {{ department_count }}</span></div>
+      <div class="hint">distinct in this view</div>
+    </div>
+  </div>
+
+  <!-- BREAKDOWNS -->
+  <div class="grid2">
+    <div class="col">
+      <div class="section" style="padding-left:0;padding-right:0;">
+        <h2>Expense by project</h2>
+        <div class="desc">Top {{ by_project|length }} project codes by expense</div>
+      </div>
+      {% if by_project %}
+      <table class="barlist">
+        {% for b in by_project %}
+        <tr>
+          <td class="lbl" title="{{ b.label }}">{{ b.label }}</td>
+          <td class="bar"><div class="track"><div class="fill" style="width:{{ b.width }}%;"></div></div></td>
+          <td class="num">{{ b.value_fmt }}</td>
+          <td class="pct">{{ b.pct }}%</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="empty">No project data for this filter.</div>
+      {% endif %}
+    </div>
+
+    <div class="col">
+      <div class="section" style="padding-left:0;padding-right:0;">
+        <h2>Expense by department</h2>
+        <div class="desc">Top {{ by_department|length }} departments by expense</div>
+      </div>
+      {% if by_department %}
+      <table class="barlist">
+        {% for b in by_department %}
+        <tr>
+          <td class="lbl" title="{{ b.label }}">{{ b.label }}</td>
+          <td class="bar"><div class="track"><div class="fill alt" style="width:{{ b.width }}%;"></div></div></td>
+          <td class="num">{{ b.value_fmt }}</td>
+          <td class="pct">{{ b.pct }}%</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="empty">No department data for this filter.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:18px;">
+    <h2>Expense by account</h2>
+    <div class="desc">Top {{ by_account|length }} expense accounts</div>
+  </div>
+  <div style="padding:0 22px 8px;">
+    {% if by_account %}
+    <table class="barlist">
+      {% for b in by_account %}
+      <tr>
+        <td class="lbl" style="width:30%;" title="{{ b.label }}">{{ b.label }}</td>
+        <td class="bar"><div class="track"><div class="fill warn" style="width:{{ b.width }}%;"></div></div></td>
+        <td class="num">{{ b.value_fmt }}</td>
+        <td class="pct">{{ b.pct }}%</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">No expense accounts for this filter.</div>
+    {% endif %}
+  </div>
+
+  <!-- DETAIL TABLE -->
+  <div class="section" style="padding-top:18px;">
+    <h2>Pivot detail</h2>
+    <div class="desc">{{ row_count }} rows · one per Purchase Order</div>
+  </div>
+  <div class="tblwrap">
+    {% if rows %}
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Purchase Order</th>
+          <th>Transaction Date</th>
+          <th>Curr</th>
+          <th>Budget Allocation</th>
+          <th>Department</th>
+          <th>Expense Account</th>
+          <th>Project Code</th>
+          <th style="text-align:right;">Amount of Allocation</th>
+          <th style="text-align:right;">Expense Amount</th>
+          <th style="text-align:right;">Balance Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            {% if r["Purchase Orders"] %}
+              <a href="/app/purchase-order/{{ r['Purchase Orders'] }}" target="_top">{{ r["Purchase Orders"] }}</a>
+            {% else %}
+              <span class="muted">-</span>
+            {% endif %}
+          </td>
+          <td>{{ r["Transaction Dates"] or "-" }}</td>
+          <td>
+            {% if r["Currency"] == "USD" %}
+              <span class="badge badge-usd">USD</span>
+            {% else %}
+              <span class="badge badge-inr">INR</span>
+            {% endif %}
+          </td>
+          <td>{% if r["Budget Allocation"] %}<a href="/app/budget/{{ r["Budget Allocation"] }}" target="_top">{{ r["Budget Allocation"] }}</a>{% else %}<span class="muted">-</span>{% endif %}</td>
+          <td>{{ r["Department"] or "-" }}</td>
+          <td>{{ r["Expense Account"] or "-" }}</td>
+          <td>{{ r["Project Code"] or "-" }}</td>
+          <td class="num">{{ r["Allocation Fmt"] }}</td>
+          <td class="num">{{ r["Expense Fmt"] }}</td>
+          <td class="num" {% if r["Balance Amount"] < 0 %}style="color:#cf222e;font-weight:600;"{% endif %}>{{ r["Balance Fmt"] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        {% if not selected_currency and (curr_totals["INR"]["count"] and curr_totals["USD"]["count"]) %}
+        <tr>
+          <td colspan="9">Total Balance (INR)</td>
+          <td class="num" {% if curr_totals["INR"]["balance"] < 0 %}style="color:#cf222e;"{% endif %}>{{ inr_balance_fmt }}</td>
+        </tr>
+        <tr>
+          <td colspan="9">Total Balance (USD)</td>
+          <td class="num" {% if curr_totals["USD"]["balance"] < 0 %}style="color:#cf222e;"{% endif %}>{{ usd_balance_fmt }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9">Total Balance</td>
+          <td class="num" {% if total_balance < 0 %}style="color:#cf222e;"{% endif %}>{{ total_balance_fmt }}</td>
+        </tr>
+        {% endif %}
+      </tfoot>
+    </table>
+    {% else %}
+    <div class="empty">
+      No purchase orders match these filters.
+      <div style="margin-top:6px;">
+        {% if is_default_range %}
+        Only the <strong>{{ default_range_label|lower }}</strong> is shown by default.
+        &nbsp;·&nbsp; <a href="{{ all_dates_url }}">Show all dates</a>
+        {% else %}
+        <a href="{{ base_url }}">Clear filters</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- FOOTER -->
+  <div class="ftr">
+    <div>Generated by Arapl MIS · ERPNext v15 · Purchase Order Pivot</div>
+    <div><a href="{{ report_url }}" target="_top">Open live report →</a></div>
+  </div>
+
+</div>
+</div>
+</body>
+</html>
