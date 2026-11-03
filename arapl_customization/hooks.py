@@ -148,6 +148,20 @@ doctype_js = {
 # 	}
 # }
 
+doc_events = {
+	"Purchase Order": {
+		# Block PO submit / Update Items if total PO booking goes over 100% of the Budget
+		"before_submit": "arapl_customization.budget_check.validate_po_budget",
+		"before_update_after_submit": "arapl_customization.budget_check.validate_po_budget",
+	},
+	"Material Request": {
+		"before_validate": "arapl_customization.budget_check.validate_mr_rate",
+		# Same 100% cap for Purchase-type Material Requests (POs + pending MRs + this MR)
+		"before_submit": "arapl_customization.budget_check.validate_mr_budget",
+		"before_update_after_submit": "arapl_customization.budget_check.validate_mr_budget",
+	},
+}
+
 # Scheduled Tasks
 # ---------------
 
@@ -248,8 +262,10 @@ doctype_js = {
 # Fixtures
 # ------------------
 fixtures = [
-    {
-        "dt": "Report",
-        "filters": [["name", "=", "Purchase Order Pivot Summary"]]
-    }
+	{"dt": "Report", "filters": [["name", "=", "Purchase Order Pivot Summary"]]},
+	{
+		# Accounts Settings toggle that switches the PO / MR budget check on and off
+		"dt": "Custom Field",
+		"filters": [["name", "=", "Accounts Settings-custom_enable_po_budget_validation"]],
+	},
 ]
