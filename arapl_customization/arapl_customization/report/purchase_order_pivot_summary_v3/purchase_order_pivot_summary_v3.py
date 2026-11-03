@@ -44,10 +44,16 @@ QUERY = """
 		`tabPurchase Order` po ON poi.parent = po.name
 	JOIN
 		`tabCompany` comp ON comp.name = po.company
-	LEFT JOIN
-		`tabBudget` b ON poi.budget_allocation = b.budget_allocation
-	LEFT JOIN
-		`tabBudget Account` ba ON ba.parent = b.name AND ba.account = poi.expense_account
+	LEFT JOIN (
+		/* One row per budget line from SUBMITTED Budgets only, so a PO line is never
+		   counted twice (cancelled/amended Budgets or several Budgets sharing one
+		   Budget Allocation used to multiply the PO amounts) */
+		SELECT b.budget_allocation, bacc.account, SUM(bacc.budget_amount) AS budget_amount
+		FROM `tabBudget` b
+		JOIN `tabBudget Account` bacc ON bacc.parent = b.name AND bacc.parenttype = 'Budget'
+		WHERE b.docstatus = 1 AND IFNULL(b.budget_allocation, '') != ''
+		GROUP BY b.budget_allocation, bacc.account
+	) ba ON ba.budget_allocation = poi.budget_allocation AND ba.account = poi.expense_account
 	WHERE
 		po.docstatus = 1
 		AND (%(from_date)s IS NULL OR po.transaction_date >= %(from_date)s)
@@ -56,7 +62,9 @@ QUERY = """
 		AND (
 			%(budget_allocation)s IS NULL
 			OR poi.budget_allocation = %(budget_allocation)s
-			OR b.name = %(budget_allocation_raw)s
+			OR poi.budget_allocation IN (
+				SELECT budget_allocation FROM `tabBudget` WHERE name = %(budget_allocation_raw)s
+			)
 			OR poi.budget_allocation LIKE %(budget_allocation_like)s
 		)
 		AND (%(purchase_order)s IS NULL OR po.name = %(purchase_order)s)
