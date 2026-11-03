@@ -157,8 +157,8 @@ def get_pivot_rows(filters):
             poi.budget_allocation,
             COALESCE(NULLIF(poi.project, ''), po.project)
         ORDER BY
-            po.transaction_date DESC,
-            po.name DESC
+            po.transaction_date ASC,
+            po.name ASC
         """,
 		values,
 		as_dict=True,
