@@ -80,10 +80,10 @@ QUERY = """
 		poi.budget_allocation,
 		COALESCE(NULLIF(poi.project, ''), po.project)
 	ORDER BY
-		po.transaction_date DESC,
-		po.name DESC,
-		poi.department DESC,
-		COALESCE(NULLIF(poi.project, ''), po.project) DESC
+		po.transaction_date ASC,
+		po.name ASC,
+		poi.department ASC,
+		COALESCE(NULLIF(poi.project, ''), po.project) ASC
 """
 
 
