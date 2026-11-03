@@ -198,19 +198,28 @@ def _budget_against_fields():
 def _get_budgets(company, fiscal_year, applicable_field, accounts):
 	"""One query: submitted budgets of this company / year for this document's accounts."""
 	fields = _budget_against_fields()
-	cols = ", ".join(f"b.`{f}`" for f in fields)
-	rows = frappe.db.sql(
-		f"""
-		select b.name, b.budget_against, ba.account, ba.budget_amount, {cols}
-		from `tabBudget` b
-		join `tabBudget Account` ba on ba.parent = b.name and ba.parenttype = 'Budget'
-		where b.docstatus = 1 and b.company = %(company)s and b.fiscal_year = %(fy)s
-			and b.`{applicable_field}` = 1 and ba.budget_amount > 0
-			and ba.account in %(accounts)s
-		""",
-		{"company": company, "fy": fiscal_year, "accounts": tuple(accounts)},
-		as_dict=True,
-	)
+	budget = frappe.qb.DocType("Budget")
+	budget_account = frappe.qb.DocType("Budget Account")
+	rows = (
+		frappe.qb.from_(budget)
+		.join(budget_account)
+		.on((budget_account.parent == budget.name) & (budget_account.parenttype == "Budget"))
+		.select(
+			budget.name,
+			budget.budget_against,
+			budget_account.account,
+			budget_account.budget_amount,
+			*[budget[f] for f in fields],
+		)
+		.where(
+			(budget.docstatus == 1)
+			& (budget.company == company)
+			& (budget.fiscal_year == fiscal_year)
+			& (budget[applicable_field] == 1)
+			& (budget_account.budget_amount > 0)
+			& (budget_account.account.isin(list(accounts)))
+		)
+	).run(as_dict=True)
 	out = []
 	for r in rows:
 		r.budget_against_field = frappe.scrub(r.budget_against)
