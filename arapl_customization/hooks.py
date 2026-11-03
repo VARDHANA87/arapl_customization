@@ -26,7 +26,13 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/arapl_customization/css/arapl_customization.css"
-app_include_js = "/assets/arapl_customization/js/get_expense_account.js"
+app_include_js = [
+	"/assets/arapl_customization/js/get_expense_account.js",
+	"/assets/arapl_customization/js/arapl_mis_nav.js",
+]
+
+# Arapl: document status banner on every print format
+pdf_body_html = "arapl_customization.print_status.pdf_body_html"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/arapl_customization/css/arapl_customization.css"
@@ -148,6 +154,20 @@ doctype_js = {
 # 	}
 # }
 
+doc_events = {
+	"Purchase Order": {
+		# Block PO submit / Update Items if total PO booking goes over 100% of the Budget
+		"before_submit": "arapl_customization.budget_check.validate_po_budget",
+		"before_update_after_submit": "arapl_customization.budget_check.validate_po_budget",
+	},
+	"Material Request": {
+		"before_validate": "arapl_customization.budget_check.validate_mr_rate",
+		# Same 100% cap for Purchase-type Material Requests (POs + pending MRs + this MR)
+		"before_submit": "arapl_customization.budget_check.validate_mr_budget",
+		"before_update_after_submit": "arapl_customization.budget_check.validate_mr_budget",
+	},
+}
+
 # Scheduled Tasks
 # ---------------
 
@@ -248,8 +268,10 @@ doctype_js = {
 # Fixtures
 # ------------------
 fixtures = [
-    {
-        "dt": "Report",
-        "filters": [["name", "=", "Purchase Order Pivot Summary"]]
-    }
+	{"dt": "Report", "filters": [["name", "=", "Purchase Order Pivot Summary"]]},
+	{
+		# Accounts Settings toggle that switches the PO / MR budget check on and off
+		"dt": "Custom Field",
+		"filters": [["name", "=", "Accounts Settings-custom_enable_po_budget_validation"]],
+	},
 ]
