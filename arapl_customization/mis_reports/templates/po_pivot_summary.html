@@ -308,6 +308,7 @@
           <th style="text-align:right;">Amount of Allocation</th>
           <th style="text-align:right;">Expense Amount</th>
           <th style="text-align:right;">Balance Amount</th>
+          <th style="text-align:right;" title="Budget left on this Budget Allocation + Expense Account after this PO and all earlier POs, in {{ company_currency }}">Budget Left ({{ company_currency }})</th>
         </tr>
       </thead>
       <tbody>
@@ -335,6 +336,7 @@
           <td class="num">{{ r["Allocation Fmt"] }}</td>
           <td class="num">{{ r["Expense Fmt"] }}</td>
           <td class="num" {% if r["Balance Amount"] < 0 %}style="color:#cf222e;font-weight:600;"{% endif %}>{{ r["Balance Fmt"] }}</td>
+          <td class="num" {% if r["Budget Left"] is not none and r["Budget Left"] < 0 %}style="color:#cf222e;font-weight:600;"{% endif %}>{% if r["Budget Left"] is not none %}{{ r["Budget Left Fmt"] }}{% else %}<span class="muted">-</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -343,15 +345,18 @@
         <tr>
           <td colspan="9">Total Balance (INR)</td>
           <td class="num" {% if curr_totals["INR"]["balance"] < 0 %}style="color:#cf222e;"{% endif %}>{{ inr_balance_fmt }}</td>
+          <td></td>
         </tr>
         <tr>
           <td colspan="9">Total Balance (USD)</td>
           <td class="num" {% if curr_totals["USD"]["balance"] < 0 %}style="color:#cf222e;"{% endif %}>{{ usd_balance_fmt }}</td>
+          <td></td>
         </tr>
         {% else %}
         <tr>
           <td colspan="9">Total Balance</td>
           <td class="num" {% if total_balance < 0 %}style="color:#cf222e;"{% endif %}>{{ total_balance_fmt }}</td>
+          <td></td>
         </tr>
         {% endif %}
       </tfoot>
