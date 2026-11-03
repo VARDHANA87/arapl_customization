@@ -111,6 +111,9 @@ def get_pivot_rows(filters):
                 2
             ) AS `Amount of Allocation`,
             ROUND(SUM(poi.amount), 2) AS `Expense Amount`,
+            /* Company currency (INR): Budget is held in it, PO base_amount is converted with the PO's rate */
+            ROUND(COALESCE(MAX(ba.budget_amount), 0), 2) AS `Amount of Allocation (INR)`,
+            ROUND(SUM(poi.base_amount), 2) AS `Expense Amount (INR)`,
             ROUND(
                 (COALESCE(MAX(ba.budget_amount), 0) / IF(po.currency != 'INR' AND po.conversion_rate > 0, po.conversion_rate, 1)) - SUM(poi.amount),
                 2
@@ -119,10 +122,16 @@ def get_pivot_rows(filters):
             `tabPurchase Order Item` poi
         JOIN
             `tabPurchase Order` po ON poi.parent = po.name
-        LEFT JOIN
-            `tabBudget` b ON poi.budget_allocation = b.budget_allocation
-        LEFT JOIN
-            `tabBudget Account` ba ON ba.parent = b.name AND ba.account = poi.expense_account
+        LEFT JOIN (
+            /* One row per budget line from SUBMITTED Budgets only, so a PO line is never
+               counted twice (cancelled/amended Budgets or several Budgets sharing one
+               Budget Allocation used to multiply the PO amounts) */
+            SELECT b.budget_allocation, bacc.account, SUM(bacc.budget_amount) AS budget_amount
+            FROM `tabBudget` b
+            JOIN `tabBudget Account` bacc ON bacc.parent = b.name AND bacc.parenttype = 'Budget'
+            WHERE b.docstatus = 1 AND IFNULL(b.budget_allocation, '') != ''
+            GROUP BY b.budget_allocation, bacc.account
+        ) ba ON ba.budget_allocation = poi.budget_allocation AND ba.account = poi.expense_account
         WHERE
             po.docstatus = 1
             AND (%(from_date)s IS NULL OR po.transaction_date >= %(from_date)s)
@@ -131,7 +140,9 @@ def get_pivot_rows(filters):
             AND (
                 %(budget_allocation)s IS NULL
                 OR poi.budget_allocation = %(budget_allocation)s
-                OR b.name = %(budget_allocation_raw)s
+                OR poi.budget_allocation IN (
+                    SELECT budget_allocation FROM `tabBudget` WHERE name = %(budget_allocation_raw)s
+                )
                 OR poi.budget_allocation LIKE %(budget_allocation_like)s
             )
             AND (%(purchase_order)s IS NULL OR po.name = %(purchase_order)s)
@@ -252,45 +263,38 @@ def _ctx_po_pivot_summary(
 		or "INR"
 	)
 
-	curr_totals = {
-		"INR": {"alloc": 0.0, "expense": 0.0, "balance": 0.0, "count": 0},
-		"USD": {"alloc": 0.0, "expense": 0.0, "balance": 0.0, "count": 0},
-	}
+	# Cards, bars and footer are in company currency (INR): POs can be in INR, USD or GBP,
+	# and only their INR amounts can be added up. A budget line's allocation is repeated on
+	# every PO row of that line, so it is counted once.
+	total_alloc = 0.0
+	total_expense = 0.0
+	alloc_seen = set()
+	currency_count = {}
 
 	for r in rows:
-		row_curr = (r.get("Currency") or "INR").upper()
-		if row_curr not in curr_totals:
-			curr_totals[row_curr] = {"alloc": 0.0, "expense": 0.0, "balance": 0.0, "count": 0}
+		row_curr = (r.get("Currency") or company_currency).upper()
+		currency_count[row_curr] = currency_count.get(row_curr, 0) + 1
 
-		alloc = flt(r.get("Amount of Allocation"))
-		exp = flt(r.get("Expense Amount"))
-		bal = flt(r.get("Balance Amount"))
-
-		r["Allocation Fmt"] = _fmt_money(alloc, row_curr)
-		r["Expense Fmt"] = _fmt_money(exp, row_curr)
-		r["Balance Fmt"] = _fmt_money(bal, row_curr)
+		r["Allocation Fmt"] = _fmt_money(r.get("Amount of Allocation"), row_curr)
+		r["Expense Fmt"] = _fmt_money(r.get("Expense Amount"), row_curr)
+		r["Balance Fmt"] = _fmt_money(r.get("Balance Amount"), row_curr)
 
 		left = budget_left.get(row_key(r))
 		r["Budget Left"] = left
 		r["Budget Left Fmt"] = _fmt_money(left, company_currency) if left is not None else ""
 
-		curr_totals[row_curr]["alloc"] += alloc
-		curr_totals[row_curr]["expense"] += exp
-		curr_totals[row_curr]["balance"] += bal
-		curr_totals[row_curr]["count"] += 1
+		line = (r.get("Budget Allocation"), r.get("Expense Account"))
+		if line not in alloc_seen:
+			alloc_seen.add(line)
+			total_alloc += flt(r.get("Amount of Allocation (INR)"))
+		total_expense += flt(r.get("Expense Amount (INR)"))
+
+	total_balance = total_alloc - total_expense
+	primary_curr = company_currency
 
 	po_set = {r.get("Purchase Orders") for r in rows if r.get("Purchase Orders")}
 	project_set = {r.get("Project Code") for r in rows if r.get("Project Code")}
 	dept_set = {r.get("Department") for r in rows if r.get("Department")}
-
-	primary_curr = currency or (
-		"USD" if curr_totals["USD"]["count"] and not curr_totals["INR"]["count"] else "INR"
-	)
-	active_summary = curr_totals.get(primary_curr, {"alloc": 0.0, "expense": 0.0, "balance": 0.0})
-
-	total_expense = active_summary["expense"]
-	total_alloc = active_summary["alloc"]
-	total_balance = active_summary["balance"]
 
 	utilisation = None
 	if total_alloc:
@@ -304,7 +308,7 @@ def _ctx_po_pivot_summary(
 		"po_count": len(po_set),
 		"project_count": len(project_set),
 		"department_count": len(dept_set),
-		"curr_totals": curr_totals,
+		"currency_mix": " · ".join(f"{c} {n}" for c, n in sorted(currency_count.items())),
 		"selected_currency": currency or "",
 		"primary_currency": primary_curr,
 		"total_expense": total_expense,
@@ -314,18 +318,14 @@ def _ctx_po_pivot_summary(
 		"total_alloc_fmt": _fmt_money(total_alloc, primary_curr),
 		"total_balance_fmt": _fmt_money(total_balance, primary_curr),
 		"company_currency": company_currency,
-		"inr_balance_fmt": _fmt_money(curr_totals["INR"]["balance"], "INR"),
-		"usd_balance_fmt": _fmt_money(curr_totals["USD"]["balance"], "USD"),
-		"inr_count": curr_totals["INR"]["count"],
-		"usd_count": curr_totals["USD"]["count"],
 		"variance": variance,
 		"variance_fmt": _fmt_money(variance, primary_curr),
 		"variance_over": variance > 0,
 		"utilisation": utilisation,
 		"utilisation_fmt": (f"{utilisation:,.1f}%" if utilisation is not None else "—"),
-		"by_project": _group(rows, "Project Code", limit=10),
-		"by_department": _group(rows, "Department", limit=12),
-		"by_account": _group(rows, "Expense Account", limit=8),
+		"by_project": _group(rows, "Project Code", limit=10, value_field="Expense Amount (INR)"),
+		"by_department": _group(rows, "Department", limit=12, value_field="Expense Amount (INR)"),
+		"by_account": _group(rows, "Expense Account", limit=8, value_field="Expense Amount (INR)"),
 		"projects": _project_options(),
 		"filter_from_date": from_date or "",
 		"filter_to_date": to_date or "",
