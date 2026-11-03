@@ -27,6 +27,11 @@ from frappe.utils import (
 	nowdate,
 )
 
+from arapl_customization.arapl_customization.report.purchase_order_pivot_summary_v3.purchase_order_pivot_summary_v3 import (
+	get_budget_left,
+	row_key,
+)
+
 # Landing range when the dashboard is opened without any filter.
 DEFAULT_RANGE_MONTHS = 1
 DEFAULT_RANGE_LABEL = "Last 1 month"
@@ -239,6 +244,14 @@ def _ctx_po_pivot_summary(
 
 	rows = get_pivot_rows(filters)
 
+	# Budget left after each PO, in company currency (same figure as Balance Amount in the
+	# Purchase Order Pivot Summary v3 report).
+	budget_left = get_budget_left()
+	company_currency = (
+		frappe.get_cached_value("Company", frappe.defaults.get_user_default("Company"), "default_currency")
+		or "INR"
+	)
+
 	curr_totals = {
 		"INR": {"alloc": 0.0, "expense": 0.0, "balance": 0.0, "count": 0},
 		"USD": {"alloc": 0.0, "expense": 0.0, "balance": 0.0, "count": 0},
@@ -256,6 +269,10 @@ def _ctx_po_pivot_summary(
 		r["Allocation Fmt"] = _fmt_money(alloc, row_curr)
 		r["Expense Fmt"] = _fmt_money(exp, row_curr)
 		r["Balance Fmt"] = _fmt_money(bal, row_curr)
+
+		left = budget_left.get(row_key(r))
+		r["Budget Left"] = left
+		r["Budget Left Fmt"] = _fmt_money(left, company_currency) if left is not None else ""
 
 		curr_totals[row_curr]["alloc"] += alloc
 		curr_totals[row_curr]["expense"] += exp
@@ -296,6 +313,7 @@ def _ctx_po_pivot_summary(
 		"total_expense_fmt": _fmt_money(total_expense, primary_curr),
 		"total_alloc_fmt": _fmt_money(total_alloc, primary_curr),
 		"total_balance_fmt": _fmt_money(total_balance, primary_curr),
+		"company_currency": company_currency,
 		"inr_balance_fmt": _fmt_money(curr_totals["INR"]["balance"], "INR"),
 		"usd_balance_fmt": _fmt_money(curr_totals["USD"]["balance"], "USD"),
 		"inr_count": curr_totals["INR"]["count"],
