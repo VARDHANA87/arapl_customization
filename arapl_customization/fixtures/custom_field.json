@@ -1,0 +1,15 @@
+[
+ {
+  "description": "Enable Purchase Order Budget Control",
+  "doctype": "Custom Field",
+  "dt": "Accounts Settings",
+  "fieldname": "custom_enable_po_budget_validation",
+  "fieldtype": "Check",
+  "insert_after": "enable_audit_trail",
+  "is_system_generated": 1,
+  "label": "Enable PO Budget Validation",
+  "modified": "2026-11-02 16:10:00.000000",
+  "module": "Arapl Customization",
+  "name": "Accounts Settings-custom_enable_po_budget_validation"
+ }
+]
