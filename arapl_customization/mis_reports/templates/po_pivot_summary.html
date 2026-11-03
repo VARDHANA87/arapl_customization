@@ -190,24 +190,20 @@
       <div class="hint">{{ row_count }} rows</div>
     </div>
     <div class="kpi">
-      <div class="lbl">Allocation ({% if selected_currency %}{{ selected_currency }}{% else %}INR{% endif %})</div>
+      <div class="lbl">Allocation ({{ company_currency }})</div>
       <div class="val">{{ total_alloc_fmt }}</div>
       <div class="hint">matched budget lines</div>
     </div>
     <div class="kpi">
-      <div class="lbl">Expense ({% if selected_currency %}{{ selected_currency }}{% else %}INR{% endif %})</div>
+      <div class="lbl">Expense ({{ company_currency }})</div>
       <div class="val">{{ total_expense_fmt }}</div>
-      <div class="hint">submitted PO value</div>
+      <div class="hint">submitted PO value, all currencies in {{ company_currency }}</div>
     </div>
     <div class="kpi {% if total_balance < 0 %}bad{% else %}good{% endif %}">
-      <div class="lbl">Balance Amount</div>
+      <div class="lbl">Balance Amount ({{ company_currency }})</div>
       <div class="val">{{ total_balance_fmt }}</div>
       <div class="hint">
-        {% if not selected_currency and (inr_count and usd_count) %}
-          INR: {{ inr_balance_fmt }} &nbsp;|&nbsp; USD: {{ usd_balance_fmt }}
-        {% else %}
-          allocation - expense
-        {% endif %}
+        allocation - expense{% if currency_mix %} &nbsp;|&nbsp; POs: {{ currency_mix }}{% endif %}
       </div>
     </div>
     <div class="kpi {% if utilisation is none %}warn{% elif utilisation > 100 %}bad{% else %}good{% endif %}">
@@ -308,6 +304,7 @@
           <th style="text-align:right;">Amount of Allocation</th>
           <th style="text-align:right;">Expense Amount</th>
           <th style="text-align:right;">Balance Amount</th>
+          <th style="text-align:right;" title="Budget left on this Budget Allocation + Expense Account after this PO and all earlier POs, in {{ company_currency }}">Budget Left ({{ company_currency }})</th>
         </tr>
       </thead>
       <tbody>
@@ -335,25 +332,16 @@
           <td class="num">{{ r["Allocation Fmt"] }}</td>
           <td class="num">{{ r["Expense Fmt"] }}</td>
           <td class="num" {% if r["Balance Amount"] < 0 %}style="color:#cf222e;font-weight:600;"{% endif %}>{{ r["Balance Fmt"] }}</td>
+          <td class="num" {% if r["Budget Left"] is not none and r["Budget Left"] < 0 %}style="color:#cf222e;font-weight:600;"{% endif %}>{% if r["Budget Left"] is not none %}{{ r["Budget Left Fmt"] }}{% else %}<span class="muted">-</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
       <tfoot>
-        {% if not selected_currency and (curr_totals["INR"]["count"] and curr_totals["USD"]["count"]) %}
         <tr>
-          <td colspan="9">Total Balance (INR)</td>
-          <td class="num" {% if curr_totals["INR"]["balance"] < 0 %}style="color:#cf222e;"{% endif %}>{{ inr_balance_fmt }}</td>
-        </tr>
-        <tr>
-          <td colspan="9">Total Balance (USD)</td>
-          <td class="num" {% if curr_totals["USD"]["balance"] < 0 %}style="color:#cf222e;"{% endif %}>{{ usd_balance_fmt }}</td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="9">Total Balance</td>
+          <td colspan="9">Total Balance ({{ company_currency }}) &nbsp;<span class="muted" style="font-weight:normal;">allocation - expense, all POs in {{ company_currency }}</span></td>
           <td class="num" {% if total_balance < 0 %}style="color:#cf222e;"{% endif %}>{{ total_balance_fmt }}</td>
+          <td></td>
         </tr>
-        {% endif %}
       </tfoot>
     </table>
     {% else %}
